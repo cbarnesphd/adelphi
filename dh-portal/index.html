@@ -1147,13 +1147,52 @@
             const modal = document.getElementById('projectModal');
             modal.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
-            document.getElementById('modalDialog').focus();
+            positionModal();
+            try { document.getElementById('modalDialog').focus({ preventScroll: true }); } catch (e) { document.getElementById('modalDialog').focus(); }
+        }
+
+        // When the page is embedded in a tall, auto-sized iframe (e.g., LibGuides), "fixed" and "vh" refer to the
+        // whole frame, so a centered modal lands thousands of pixels down. Place the dialog in the part of the
+        // frame the reader can see instead: from the parent's viewport if the embed script reports it, otherwise
+        // near the point that was clicked.
+        let parentView = null;
+        let lastPointerY = 0;
+        document.addEventListener('pointerdown', e => { lastPointerY = e.pageY; }, { passive: true });
+        window.addEventListener('message', e => {
+            if (e.data && typeof e.data === 'object' && e.data.type === 'dh-portal-viewport') parentView = e.data;
+        });
+        function positionModal() {
+            const modal = document.getElementById('projectModal');
+            const dlg = document.getElementById('modalDialog');
+            if (window.parent === window) {
+                modal.classList.add('items-center'); modal.classList.remove('items-start');
+                dlg.style.marginTop = ''; dlg.style.maxHeight = '';
+                return;
+            }
+            try { window.parent.postMessage({ type: 'dh-portal-request-viewport' }, '*'); } catch (e) {}
+            const margin = 24;
+            let top, maxH;
+            if (parentView && parentView.innerHeight) {
+                const frameTopInParent = parentView.frameTop - parentView.scrollY;   // frame's top edge relative to the parent viewport
+                const visibleTop = Math.max(0, -frameTopInParent);                  // first visible pixel of the frame
+                const visibleBottom = Math.min(document.documentElement.scrollHeight, parentView.innerHeight - frameTopInParent);
+                top = visibleTop + margin;
+                maxH = Math.max(320, visibleBottom - visibleTop - 2 * margin);
+            } else {
+                top = Math.max(margin, lastPointerY - 160);
+                maxH = 620;
+            }
+            modal.classList.remove('items-center'); modal.classList.add('items-start');
+            dlg.style.marginTop = top + 'px';
+            dlg.style.maxHeight = maxH + 'px';
         }
 
         let lastFocused = null;
 
         function closeModal() {
             document.getElementById('projectModal').classList.add('hidden');
+            const dlg = document.getElementById('modalDialog');
+            dlg.style.marginTop = ''; dlg.style.maxHeight = '';
             document.body.style.overflow = '';
             if (lastFocused && typeof lastFocused.focus === 'function') lastFocused.focus();
         }
