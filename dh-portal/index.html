@@ -1234,6 +1234,16 @@
             document.body.style.minHeight = '0';
             new ResizeObserver(reportHeight).observe(document.body);
             window.addEventListener('load', reportHeight);
+            // In-page links (#about, #projects, #tools) cannot scroll a frame that is sized to its content,
+            // so scroll the target into view ourselves; browsers carry that up to the parent page.
+            document.addEventListener('click', function (e) {
+                const a = e.target.closest('a[href^="#"]');
+                if (!a) return;
+                const target = document.getElementById(a.getAttribute('href').slice(1));
+                if (!target) return;
+                e.preventDefault();
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
         }
 
         // Initialize application on page load
