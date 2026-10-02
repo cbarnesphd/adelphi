@@ -1218,13 +1218,20 @@
             try { window.parent.postMessage({ type: 'dh-portal-scroll-top' }, '*'); } catch (e) {}
         }
 
-        // Report content height to a parent page (e.g., a LibGuides iframe) so it can resize the frame
+        // Report content height to a parent page (e.g., a LibGuides iframe) so it can resize the frame.
+        // Inside an auto-sized frame, 100vh equals the frame height, so the body's min-h-screen would make
+        // the content grow every time the frame grows (a feedback loop). When embedded, drop that minimum
+        // and only report real changes.
+        let lastReportedHeight = 0;
         function reportHeight() {
             if (window.parent === window) return;
-            const h = document.documentElement.scrollHeight;
+            const h = Math.ceil(document.body.getBoundingClientRect().height);
+            if (Math.abs(h - lastReportedHeight) < 4) return;
+            lastReportedHeight = h;
             try { window.parent.postMessage({ type: 'dh-portal-height', height: h }, '*'); } catch (e) {}
         }
         if (window.parent !== window) {
+            document.body.style.minHeight = '0';
             new ResizeObserver(reportHeight).observe(document.body);
             window.addEventListener('load', reportHeight);
         }
